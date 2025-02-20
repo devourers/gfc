@@ -1,23 +1,68 @@
 #include "gfc.h"
 #include <QSettings>
 #include <QMessageBox>
+#include <QlistView>
+#include <QListWidget>
 
+//level index
+
+LevelIndex::LevelIndex(QObject* parent) : QObject(parent) {
+  return;
+}
+
+LevelIndex::~LevelIndex(){
+  return;
+}
+
+void LevelIndex::AddLevel(const QString& level_name) {
+  levels_.push_back(level_name);
+  emit levelAdded(level_name);
+}
+
+const QStringList& LevelIndex::GetLevels() {
+  return levels_;
+}
+
+void LevelIndex::SetRootDir(const QString& dir) {
+  root_dir_ = dir;
+}
+
+
+//gfc
 GFC::GFC(QWidget* parent, Qt::WindowFlags flags){
   setupUi(this);
+
+  level_list_view_model_ = new QStringListModel(this);
+  LevelListView->setModel(level_list_view_model_);
+
+  QItemSelectionModel* selectionModel = LevelListView->selectionModel();
+
+  connect(
+    selectionModel,
+    SIGNAL(currentRowChanged(QModelIndex, QModelIndex)), 
+    this, 
+    SLOT(on_LevelListView_currentChanged(QModelIndex, QModelIndex))
+  );
+
+  level_details_view_model_ = new QStandardItemModel(this);
+  LevelDetails->setModel(level_details_view_model_);
+
   QSettings settings("abc", "GFC");
-  if (settings.contains("content_dir_")) {
-    content_dir_ = settings.value("content_dir_").toString();
+  if (settings.contains("ContentDir")) {
+    content_dir_ = settings.value("ContentDir").toString();
   }
   else {
-    content_dir_ = QString("hehe"); //add button
+    content_dir_ = QString("hehe"); //cfg file
   }
-  watcher_ = new QFileSystemWatcher(this);
-  //watcher_->addPath(content_dir_);
-  watcher_->addPath(content_dir_ + "/.index");
-  connect(watcher_, SIGNAL(directoryChanged(const QString&)), this, SLOT(onRootContentDirChanged(const QString&)));
-  connect(watcher_, SIGNAL(fileChanged(const QString&)), this, SLOT(onIndexFileChanged(const QString&)));
   //restoreGeometry(settings.value("myWidget/geometry").toByteArray());
   //restoreState(settings.value("myWidget/windowState").toByteArray());
+
+  BindWatcher();
+
+  index_file.setFileName(content_dir_ + FILE_NAME);
+  bool test = index_file.open(QIODevice::Text | QIODevice::ReadOnly);
+
+  BuildIndex();
 }
 
 void GFC::SaveState() const {
@@ -27,8 +72,26 @@ void GFC::SaveState() const {
   //settings.setValue("windowState", saveState());
 }
 
-GFC::~GFC() {
+void GFC::BuildIndex(){
+  level_index_ = new LevelIndex();
+  connect(level_index_, SIGNAL(levelAdded(const QString&)), this, SLOT(onLevelAdded(const QString&)));
+  level_index_->SetRootDir(content_dir_);
+  while (!index_file.atEnd()) {
+    level_index_->AddLevel(index_file.readLine());
+  }
 
+  level_list_view_model_->setStringList(level_index_->GetLevels());
+}
+
+void GFC::BindWatcher(){
+  watcher_ = new QFileSystemWatcher(this);
+  watcher_->addPath(content_dir_ + FILE_NAME);
+
+  connect(watcher_, SIGNAL(fileChanged(const QString&)), this, SLOT(onIndexFileChanged(const QString&)));
+}
+
+GFC::~GFC() {
+  SaveState();
 }
 
 
@@ -40,8 +103,26 @@ void GFC::onRootContentDirChanged(const QString& path) {
 }
 
 void GFC::onIndexFileChanged(const QString& path) {
-  QMessageBox badIndex;
-  QString messagebox_text = "index changed";
-  badIndex.setText(tr(messagebox_text.toStdString().c_str()));
-  badIndex.exec();
+  if (path == content_dir_ + FILE_NAME) {
+    QString level_name = index_file.readLine();
+    level_index_->AddLevel(level_name);
+  }
+}
+
+void GFC::onLevelAdded(const QString& level_name){
+  level_list_view_model_->insertRow(level_list_view_model_->rowCount());
+  QModelIndex idx = level_list_view_model_->index(level_list_view_model_->rowCount() - 1);
+  level_list_view_model_->setData(idx, level_name);
+}
+
+void GFC::on_LevelListView_currentChanged(QModelIndex current, QModelIndex previous){
+  level_details_view_model_->clear();
+  QStandardItem* parent_item = level_details_view_model_->invisibleRootItem();
+  QStandardItem* level_name_label = new QStandardItem("Level Title");
+  QString level_name_str = level_list_view_model_->data(current).toString();
+  level_name_str = level_name_str.left(level_name_str.length() - 1);
+  QStandardItem* level_name = new QStandardItem(level_name_str);
+  parent_item->appendColumn({ level_name_label });
+  parent_item->appendColumn({ level_name });
+  parent_item = level_name;
 }
