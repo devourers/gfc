@@ -45,6 +45,7 @@ GFC::GFC(QWidget* parent, Qt::WindowFlags flags){
   );
 
   level_details_view_model_ = new QStandardItemModel(this);
+  level_details_view_model_->setVerticalHeaderLabels({ "Label", "Value" });
   LevelDetails->setModel(level_details_view_model_);
 
   QSettings settings("abc", "GFC");
@@ -118,11 +119,21 @@ void GFC::onLevelAdded(const QString& level_name){
 void GFC::on_LevelListView_currentChanged(QModelIndex current, QModelIndex previous){
   level_details_view_model_->clear();
   QStandardItem* parent_item = level_details_view_model_->invisibleRootItem();
+
+  //labels
   QStandardItem* level_name_label = new QStandardItem("Level Title");
+  QStandardItem* chapter_label = new QStandardItem("Level Chapter");
+  QStandardItem* num_of_actors = new QStandardItem("Total Actors");
+  QStandardItem* num_of_inventory_entries = new QStandardItem("Total Inventory Entries");
+  QStandardItem* num_of_dialogues = new QStandardItem("Total Dialogues");
+  QStandardItem* num_of_note_entries = new QStandardItem("Total Notes");
+  QStandardItem* num_of_lore_entries = new QStandardItem("Total Lore Entries"); //TODO -- lore should be it's own thing, this just signals which entry keys are granted on interaction
+
+   //values
   QString level_name_str = level_list_view_model_->data(current).toString();
   level_name_str = level_name_str.left(level_name_str.length() - 1);
   QStandardItem* level_name = new QStandardItem(level_name_str);
-  parent_item->appendColumn({ level_name_label });
+  parent_item->appendColumn({ level_name_label, chapter_label, num_of_actors, num_of_inventory_entries, num_of_dialogues, num_of_note_entries, num_of_lore_entries });
   parent_item->appendColumn({ level_name });
   parent_item = level_name;
 }
