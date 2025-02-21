@@ -12,14 +12,47 @@
 
 #define FILE_NAME ".index.txt"
 
+class DialogueEntry : public QObject {
+  Q_OBJECT
+  Q_DISABLE_COPY(DialogueEntry)
+public:
+  explicit DialogueEntry(QObject* parent = 0);
+  ~DialogueEntry();
+private:
+
+};
+
+class InventoryEntry : public QObject {
+
+};
+
+class InventoryIndex : public QObject {
+  Q_OBJECT
+  Q_DISABLE_COPY(InventoryIndex)
+
+public:
+  explicit InventoryIndex(QObject* parent = 0);
+  ~InventoryIndex();
+
+private:
+  QMap<QString, InventoryEntry> inventories_;
+};
 
 class DialogueIndex : public QObject {
   Q_OBJECT
-    Q_DISABLE_COPY(DialogueIndex)
+  Q_DISABLE_COPY(DialogueIndex)
 
 public:
   explicit DialogueIndex(QObject* parent = 0);
   ~DialogueIndex();
+
+  void SetLevel(const QString& level);
+  void BuildIndex();
+
+private:
+  QString level_;
+  QString dir_;
+  QMap<QString, DialogueEntry> dialogues_;
 };
 
 class CheckIndex : public QObject {
@@ -33,7 +66,7 @@ public:
 
 class LoreIndex : public QObject {
   Q_OBJECT
-    Q_DISABLE_COPY(LoreIndex)
+  Q_DISABLE_COPY(LoreIndex)
 
 public:
   explicit LoreIndex(QObject* parent = 0);
@@ -53,16 +86,26 @@ signals:
   void levelAdded(const QString& level_name);
 
 private slots:
-
+  void onIndexFileChanged(const QString& path);
 
 public:
   void SetRootDir(const QString& dir);
   void AddLevel(const QString& level_name);
   const QStringList& GetLevels();
+  void CreateWatcher();
 
 private:
   QString root_dir_;
   QStringList levels_;
+
+  QFileSystemWatcher* watcher_;
+
+  //QMap<QString, QFile> dialogue_indexes_files_;
+  //QMap<QString, QFile> inventory_indexes_files_;
+
+  QMap<QString, DialogueIndex*> dialogue_indexes_;
+  QMap<QString, InventoryIndex*> inventory_indexes_;
+
 };
 
 class GFC : public QMainWindow, public Ui::GFC {
@@ -90,6 +133,7 @@ private slots:
 private:
   //main
   LevelIndex* level_index_;
+  LoreIndex* lore_index_;
 
   QStringListModel* level_list_view_model_;
   QStandardItemModel* level_details_view_model_;

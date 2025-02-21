@@ -16,6 +16,22 @@ LevelIndex::~LevelIndex(){
 
 void LevelIndex::AddLevel(const QString& level_name) {
   levels_.push_back(level_name);
+  
+  //dialogue
+  DialogueIndex* dg_idx = new DialogueIndex(this);
+  dg_idx->SetLevel(level_name);
+  dg_idx->BuildIndex();
+  dialogue_indexes_[level_name] = dg_idx;
+  QString dg_path = root_dir_ + level_name + "/Dialogue/" + FILE_NAME;
+  //dialogue_indexes_files_.insert(level_name, QFile());
+  //dialogue_indexes_files_[level_name].setFileName(dg_path);
+  //dialogue_indexes_files_[level_name].open(QIODevice::Text | QIODevice::ReadOnly);
+
+  watcher_->addPath(dg_path);
+
+  InventoryIndex* inv_idx = new InventoryIndex(this);
+  watcher_->addPath(root_dir_ + level_name + "/Inventory/" + FILE_NAME);
+
   emit levelAdded(level_name);
 }
 
@@ -23,8 +39,18 @@ const QStringList& LevelIndex::GetLevels() {
   return levels_;
 }
 
+void LevelIndex::CreateWatcher(){
+  QFileSystemWatcher* watcher = new QFileSystemWatcher(this);
+  watcher_ = watcher;
+  connect(watcher_, SIGNAL(fileChanged(const QString&)), this, SLOT(onIndexFileChanged(const QString&)));
+}
+
 void LevelIndex::SetRootDir(const QString& dir) {
   root_dir_ = dir;
+}
+
+void LevelIndex::onIndexFileChanged(const QString& path) {
+
 }
 
 
@@ -75,6 +101,8 @@ void GFC::SaveState() const {
 
 void GFC::BuildIndex(){
   level_index_ = new LevelIndex();
+  level_index_->CreateWatcher();
+
   connect(level_index_, SIGNAL(levelAdded(const QString&)), this, SLOT(onLevelAdded(const QString&)));
   level_index_->SetRootDir(content_dir_);
   while (!index_file.atEnd()) {
@@ -136,4 +164,29 @@ void GFC::on_LevelListView_currentChanged(QModelIndex current, QModelIndex previ
   parent_item->appendColumn({ level_name_label, chapter_label, num_of_actors, num_of_inventory_entries, num_of_dialogues, num_of_note_entries, num_of_lore_entries });
   parent_item->appendColumn({ level_name });
   parent_item = level_name;
+}
+
+InventoryIndex::InventoryIndex(QObject* parent) : QObject(parent) {
+  return;
+}
+
+InventoryIndex::~InventoryIndex(){
+  return;
+}
+
+DialogueIndex::DialogueIndex(QObject* parent) : QObject(parent) {
+  return;
+}
+
+DialogueIndex::~DialogueIndex(){
+  return;
+}
+
+void DialogueIndex::SetLevel(const QString& level){
+  level_ = level;
+}
+
+void DialogueIndex::BuildIndex(){
+  QString idx_file = dir_ + level_ + "/" + FILE_NAME;
+
 }
